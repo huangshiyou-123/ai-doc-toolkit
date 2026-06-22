@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 文档处理工具箱</title>
+<style>
+:root {
+  --bg: #09090b;
+  --surface: #18181b;
+  --surface2: #27272a;
+  --border: #3f3f46;
+  --border-subtle: #27272a;
+  --text: #fafafa;
+  --text2: #a1a1aa;
+  --text3: #71717a;
+  --accent: #2dd4bf;
+  --accent2: #818cf8;
+  --accent-glow: rgba(45,212,191,0.12);
+  --green: #34d399;
+  --red: #f87171;
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { background:#09090b; }
+body {
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background:#09090b; color:var(--text); min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* Navbar */
+.nav {
+  height:56px; border-bottom:1px solid var(--border-subtle);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 28px; position:sticky; top:0; background:rgba(9,9,11,0.85);
+  backdrop-filter:blur(20px); z-index:50;
+  -webkit-backdrop-filter:blur(20px);
+}
+.nav-logo { display:flex; align-items:center; gap:10px; }
+.nav-dot { width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent-glow); }
+.nav-title { font-size:15px; font-weight:700; letter-spacing:-0.3px; }
+.nav-title span { color:var(--accent); }
+.nav-right { display:flex; align-items:center; gap:12px; }
+.nav-badge {
+  font-size:11px; padding:5px 12px; border-radius:20px;
+  border:1px solid var(--border); color:var(--text2); cursor:pointer;
+  transition:.2s; background:transparent; font-family:inherit;
+}
+.nav-badge:hover { border-color:var(--text3); color:var(--text); }
+.nav-badge.on { border-color:var(--green); color:var(--green); background:rgba(52,211,153,0.06); }
+.nav-ghint { font-size:11px; color:var(--text3); }
+
+/* Layout */
+.main { max-width:1260px; margin:0 auto; padding:28px 24px 60px; }
+
+/* Hero */
+.hero { margin-bottom:28px; }
+.hero h2 { font-size:26px; font-weight:800; letter-spacing:-0.6px; margin-bottom:6px; }
+.hero h2 em { font-style:normal; color:var(--accent); }
+.hero p { font-size:14px; color:var(--text2); line-height:1.6; }
+
+/* Mode selector */
+.modes { display:flex; gap:6px; margin-bottom:24px; flex-wrap:wrap; }
+.mode {
+  padding:9px 18px; border-radius:var(--radius-sm); cursor:pointer;
+  background:var(--surface); border:1px solid var(--border-subtle);
+  color:var(--text2); font-size:13px; font-weight:500; transition:.2s;
+  font-family:inherit; letter-spacing:-0.2px;
+}
+.mode:hover { background:var(--surface2); color:var(--text); }
+.mode.on { background:rgba(45,212,191,0.08); border-color:var(--accent); color:var(--accent); font-weight:600; }
+.mode-dot { display:inline-block; width:5px; height:5px; border-radius:50%; background:currentColor; margin-right:6px; vertical-align:middle; opacity:0.5; }
+.mode.on .mode-dot { opacity:1; }
+
+/* Split */
+.split { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+@media (max-width:800px) { .split { grid-template-columns:1fr; } }
+
+/* Cards */
+.card {
+  background:var(--surface); border:1px solid var(--border-subtle);
+  border-radius:var(--radius); display:flex; flex-direction:column;
+  min-height:520px; overflow:hidden; transition:border-color .2s;
+}
+.card:focus-within { border-color:var(--border); }
+
+.card-head {
+  padding:14px 18px; border-bottom:1px solid var(--border-subtle);
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:12px; font-weight:600; color:var(--text3); letter-spacing:0.4px;
+  text-transform:uppercase;
+}
+.card-head .meta { font-size:11px; font-weight:400; text-transform:none; letter-spacing:0; }
+
+/* Textarea */
+.card-body { flex:1; position:relative; }
+.card-body textarea {
+  width:100%; height:100%; background:transparent; border:none; color:var(--text);
+  padding:18px; font-size:14px; line-height:1.75; resize:none;
+  font-family:'SF Mono','Cascadia Code','Consolas','Microsoft YaHei',monospace;
+  outline:none; position:absolute; top:0; left:0;
+}
+.card-body textarea::placeholder { color:var(--text3); }
+
+/* Output */
+.out-body { flex:1; padding:18px; overflow-y:auto; font-size:14px; line-height:1.8; position:relative; }
+.out-body .empty { color:var(--text3); font-style:italic; font-size:13px; }
+.out-body h2 { font-size:17px; font-weight:700; margin:18px 0 8px; color:var(--accent); }
+.out-body h2:first-child { margin-top:0; }
+.out-body h3 { font-size:14px; font-weight:700; margin:14px 0 6px; color:var(--text); }
+.out-body ul { padding-left:18px; margin:6px 0; }
+.out-body li { margin:4px 0; color:var(--text2); }
+.out-body li.todo { list-style:none; }
+.out-body li.todo::before { content:'☐ '; color:var(--accent); }
+.out-body p { margin:4px 0; color:var(--text2); }
+.out-body strong { color:var(--text); }
+.out-body br { display:block; content:''; margin:6px 0; }
+
+/* Footer */
+.card-foot {
+  padding:10px 18px; border-top:1px solid var(--border-subtle);
+  display:flex; gap:8px; align-items:center;
+}
+
+/* Buttons */
+.btn {
+  padding:8px 16px; border-radius:var(--radius-sm); border:none; cursor:pointer;
+  font-size:12.5px; font-weight:600; font-family:inherit; transition:.15s;
+  letter-spacing:-0.2px; display:inline-flex; align-items:center; gap:6px;
+}
+.btn-accent { background:var(--accent); color:#09090b; }
+.btn-accent:hover { background:#5eead4; transform:translateY(-1px); box-shadow:0 4px 16px var(--accent-glow); }
+.btn-accent:disabled { opacity:0.3; transform:none; box-shadow:none; cursor:not-allowed; }
+.btn-ghost { background:transparent; border:1px solid var(--border-subtle); color:var(--text2); }
+.btn-ghost:hover { border-color:var(--border); background:var(--surface2); color:var(--text); }
+.btn-xs { padding:5px 10px; font-size:11px; }
+
+/* Status */
+.status {
+  text-align:center; padding:10px 0; font-size:12px; color:var(--text3);
+  min-height:28px; margin-top:12px;
+}
+.status .live { color:var(--accent); }
+.status .live::before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent); margin-right:6px; animation:pulse 1.6s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+/* Modal */
+.modal-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
+  z-index:100; align-items:center; justify-content:center;
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+}
+.modal-overlay.show { display:flex; }
+.modal {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:28px; width:440px; max-width:92vw;
+}
+.modal h3 { font-size:17px; font-weight:700; margin-bottom:6px; }
+.modal .sub { font-size:12px; color:var(--text3); margin-bottom:16px; line-height:1.6; }
+.modal input {
+  width:100%; padding:11px 14px; border-radius:var(--radius-sm); border:1px solid var(--border);
+  background:var(--bg); color:var(--text); font-size:13px; font-family:'SF Mono',monospace;
+  outline:none; transition:.15s;
+}
+.modal input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.modal .btn-row { display:flex; gap:8px; margin-top:18px; justify-content:flex-end; }
+
+/* Toast */
+.toast {
+  position:fixed; bottom:28px; right:28px; padding:10px 18px;
+  border-radius:var(--radius-sm); font-size:13px; font-weight:600; z-index:200;
+  animation:slideUp .3s; background:var(--surface2); border:1px solid var(--border);
+  color:var(--text); box-shadow:0 12px 40px rgba(0,0,0,0.5);
+}
+@keyframes slideUp { from{opacity:0;transform:translateY(8px)} }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:10px; }
+
+/* File input hidden */
+#fileInput { display:none; }
+
+/* Link style */
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="nav-dot"></div>
+    <div class="nav-title">AI <span>文档工具箱</span></div>
+  </div>
+  <div class="nav-right">
+    <span class="nav-ghint">DeepSeek</span>
+    <button class="nav-badge" id="apiBadge" onclick="showApiModal()">⚡ 设置 API Key</button>
+  </div>
+</nav>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Hero -->
+  <div class="hero">
+    <h2>把混乱的文档<em>变成结构</em></h2>
+    <p>选择一个处理模式，粘贴内容，AI 自动整理为规范的结构化输出——项目助理的日常生产力工具</p>
+  </div>
+
+  <!-- Modes -->
+  <div class="modes" id="modes">
+    <button class="mode on" data-mode="summary"><span class="mode-dot"></span>文档摘要</button>
+    <button class="mode" data-mode="requirements"><span class="mode-dot"></span>需求整理</button>
+    <button class="mode" data-mode="minutes"><span class="mode-dot"></span>会议纪要</button>
+    <button class="mode" data-mode="custom"><span class="mode-dot"></span>智能识别</button>
+  </div>
+
+  <!-- Split -->
+  <div class="split">
+    <!-- Input -->
+    <div class="card">
+      <div class="card-head">
+        <span>INPUT</span>
+        <span class="meta" id="inputCount">0 字</span>
+      </div>
+      <div class="card-body">
+        <textarea id="inputText" placeholder="在此粘贴要处理的文档内容...&#10;&#10;快捷键：Ctrl + Enter 生成"></textarea>
+      </div>
+      <div class="card-foot">
+        <button class="btn btn-ghost btn-xs" onclick="document.getElementById('fileInput').click()">📁 导入</button>
+        <input type="file" id="fileInput" accept=".txt,.md,.json,.csv" onchange="loadFile(event)">
+        <button class="btn btn-ghost btn-xs" onclick="loadDemo()">💡 示例</button>
+        <button class="btn btn-ghost btn-xs" onclick="document.getElementById('inputText').value='';updateCount()">清空</button>
+        <button class="btn btn-accent" id="genBtn" onclick="generate()" style="margin-left:auto">⚡ 生成</button>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="card">
+      <div class="card-head">
+        <span>OUTPUT</span>
+        <span class="meta" id="genInfo"></span>
+      </div>
+      <div class="out-body" id="outputArea">
+        <div class="empty">点击「生成」按钮，AI 输出将显示在这里。</div>
+      </div>
+      <div class="card-foot">
+        <button class="btn btn-ghost btn-xs" onclick="copyOutput()">📋 复制</button>
+        <button class="btn btn-ghost btn-xs" onclick="downloadMD()">📝 .md</button>
+        <button class="btn btn-ghost btn-xs" onclick="downloadTXT()">📄 .txt</button>
+        <button class="btn btn-ghost btn-xs" onclick="exportPDF()">🖨️ PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="statusBar">就绪</div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h3>设置 DeepSeek API Key</h3>
+    <p class="sub">密钥仅保存在浏览器本地，不上传任何服务器。<br>获取地址：<a href="https://platform.deepseek.com/api_keys" target="_blank">platform.deepseek.com/api_keys</a></p>
+    <input type="password" id="apiKeyInput" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx">
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-xs" onclick="closeApiModal()">取消</button>
+      <button class="btn btn-accent btn-xs" onclick="saveApiKey()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== DATA ==========
+var PROMPTS = {
+  summary: '你是一个专业的文档摘要助手。对用户提供的文档按以下格式输出：\n\n## 一句话概括\n用一句话概括文档核心内容\n\n## 核心要点\n- 要点1\n- 要点2\n...（通常3-5条，每条不超过两句话）\n\n## 关键数据\n列出文档中的数字、年份、金额、百分比（如无明显数据可省略）\n\n## 总结\n一句话点出文档价值\n\n规则：中文，简洁专业，不编造。',
+  requirements: '你是一个专业的项目需求整理助手。对用户提供的需求描述按以下格式输出：\n\n## 核心需求\n用一句话说清楚要什么\n\n## 功能点拆解\n- 功能点1：描述\n- 功能点2：描述\n...（通常3-7个，每条不超过两句话）\n\n## 待确认的疑问\n- 疑问1\n- 疑问2\n...（如需求明确无歧义则省略此项）\n\n## 建议下一步\n1. 第一条建议\n2. 第二条建议\n\n规则：不猜测没说清的内容，不确定的放进疑问栏。中文，专业但口语化。',
+  minutes: '你是一个专业的会议纪要整理助手。对用户提供的会议内容按以下格式输出：\n\n## 会议概要\n- 主题 / 时间 / 参会人员（原文未提及的标注待补充）\n\n## 讨论要点\n1. 议题：…… — 结论：……\n\n## 决策事项\n- 决策1\n- 决策2\n\n## 待办事项\n- [ ] 事项1 — 负责人：xxx — 截止：xxx\n（未明确的标注待明确）\n\n规则：客观记录，不添加会议中没有的内容。中文。',
+  custom: '你是一个智能文档处理助手。自动识别用户输入的内容类型，选择最合适的格式进行结构化整理：需求类按需求整理格式，文章类按摘要格式，会议类按纪要格式。把混乱输入变成清晰输出。规则：中文，简洁专业。'
+};
+
+var DESCS = {
+  summary: '粘贴长文档，AI 自动提炼一句话概括 + 核心要点 + 关键数据',
+  requirements: '粘贴客户原话，AI 自动拆解为结构化需求文档',
+  minutes: '粘贴会议记录或语音转文字，AI 整理为标准纪要格式',
+  custom: 'AI 自动识别内容类型，智能选择最合适的整理方式'
+};
+
+var DEMOS = {
+  summary: '2024年，中国人工智能市场规模达到1.2万亿元，同比增长18%。其中大语言模型（LLM）相关的企业服务占比最高，达到35%。预计到2026年，AI在制造业、医疗、教育三个行业的渗透率将分别提升至12%、8%和15%。从技术架构来看，基础模型层仍是竞争最激烈的环节。应用层方面，智能客服、AI辅助编程、文档智能处理三个场景的落地速度最快。业内分析师指出，AI人才缺口是目前制约行业发展的首要瓶颈，预计2026年AI相关岗位需求将达到500万个，而目前持证从业人员不足200万。',
+  requirements: '客户说：我们公司想做一个员工考勤小程序，跟钉钉打卡数据打通，员工能在小程序上看到自己每天的打卡记录和加班时长。月底自动生成考勤汇总表，HR可以直接导出Excel。审批流程也要走起来，请假、加班申请都能在小程序里批。',
+  minutes: '会议时间：2026年6月20日 下午2:00-3:30 | 参会人：张总、李经理、小王（产品）、小陈（开发）| 会议主题：Q3产品迭代计划讨论\n\n张总开场说：Q2的数据出来了，用户留存率从71%掉到67%，主要是新用户首周体验没做好。这个问题我们必须在Q3优先解决。李经理建议先看数据分析再定方案。小王已经拉了最近三个月的用户流失数据，流失高峰在第3天和第5天。\n\n小陈提出：技术层面可以做新手引导的优化，但需要设计配合。张总拍板：小王你两周内出新手引导的改版方案，小陈先评估技术实现的可行性，李经理协调一下设计资源。\n\n另外张总还提到了竞品分析——竞争对手上周推出了AI辅助功能，我们也要考虑在Q3做一个轻量版的AI功能。小王建议先做用户调研看看需求，张总同意了，要求先调研再立项。',
+  custom: '最近在思考一个问题：为什么很多AI产品看起来很酷，但用户用了几次就不用了？核心问题是AI的输出质量不稳定——有时候很好，有时候完全不能用。用户不会为一个偶尔好用的产品买单。解决方案：第一是限制AI的使用范围，不要什么都让它做。第二是做好兜底方案，AI不行的时候人工介入。第三是让用户对AI的输出结果有预期管理。'
+};
+
+// ========== STATE ==========
+var mode = 'summary';
+var apiKey = localStorage.getItem('ds_api_key') || '';
+var lastOutput = '';
+
+// ========== INIT ==========
+(function(){
+  if (apiKey) {
+    document.getElementById('apiBadge').textContent = '已就绪';
+    document.getElementById('apiBadge').classList.add('on');
+  }
+  document.querySelectorAll('.mode').forEach(function(m){
+    m.addEventListener('click', function(){ switchMode(m.dataset.mode); });
+  });
+  document.getElementById('inputText').addEventListener('input', updateCount);
+  document.getElementById('inputText').addEventListener('keydown', function(e){
+    if (e.ctrlKey && e.key === 'Enter') generate();
+  });
+})();
+
+function switchMode(m){
+  mode = m;
+  document.querySelectorAll('.mode').forEach(function(el){ el.classList.remove('on'); });
+  document.querySelector('[data-mode="'+m+'"]').classList.add('on');
+  document.querySelector('.hero p').textContent = DESCS[m];
+}
+
+function updateCount(){
+  document.getElementById('inputCount').textContent = document.getElementById('inputText').value.length + ' 字';
+}
+
+// ========== API KEY ==========
+function showApiModal(){ document.getElementById('apiModal').classList.add('show'); }
+function closeApiModal(){ document.getElementById('apiModal').classList.remove('show'); }
+function saveApiKey(){
+  var k = document.getElementById('apiKeyInput').value.trim();
+  if(!k) return toast('请输入 API Key');
+  if(k.indexOf('sk-') !== 0) return toast('Key 应以 sk- 开头');
+  localStorage.setItem('ds_api_key', k);
+  apiKey = k;
+  document.getElementById('apiBadge').textContent = '已就绪';
+  document.getElementById('apiBadge').classList.add('on');
+  closeApiModal();
+  toast('API Key 已保存');
+}
+
+// ========== GENERATE ==========
+function generate(){
+  if(!apiKey){ showApiModal(); return; }
+  var input = document.getElementById('inputText').value.trim();
+  if(!input) return toast('请先粘贴文档内容');
+
+  var out = document.getElementById('outputArea');
+  var btn = document.getElementById('genBtn');
+  var st = document.getElementById('statusBar');
+
+  out.innerHTML = '<div class="empty">AI 正在处理...</div>';
+  btn.disabled = true;
+  btn.textContent = '处理中...';
+  st.innerHTML = '<span class="live">正在调用 DeepSeek</span>';
+
+  fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: PROMPTS[mode] },
+        { role: 'user', content: input }
+      ],
+      temperature: 0.3,
+      max_tokens: 4096,
+      stream: false
+    })
+  }).then(function(res){
+    if(!res.ok){
+      return res.json().then(function(e){ throw new Error(e.error && e.error.message || 'HTTP '+res.status); });
+    }
+    return res.json();
+  }).then(function(data){
+    var text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '(AI 未返回内容)';
+    lastOutput = text;
+    out.innerHTML = renderMD(text);
+    document.getElementById('genInfo').textContent = text.length + ' 字';
+    st.innerHTML = '生成完成 - ' + new Date().toLocaleTimeString();
+  }).catch(function(err){
+    out.innerHTML = '<div class="empty" style="color:#f87171">' + escapeHTML(err.message) + '</div>';
+    st.innerHTML = '失败 - 请检查 API Key 或网络';
+  }).then(function(){
+    btn.disabled = false;
+    btn.textContent = '生成';
+  });
+}
+
+// ========== RENDER ==========
+function renderMD(text){
+  var lines = text.split('\n');
+  var html = '';
+  var inList = false;
+  for(var i=0; i<lines.length; i++){
+    var line = lines[i];
+    var trimmed = line.trim();
+
+    // close list if needed
+    if(inList && !trimmed.match(/^[-*•]\s/) && !trimmed.match(/^\d+\.\s/) && !trimmed.match(/^-\s*\[\s*\]\s/)){
+      html += '</ul>\n';
+      inList = false;
+    }
+
+    if(trimmed === ''){
+      if(inList){ html += '</ul>\n'; inList = false; }
+      html += '<br>';
+    }
+    else if(trimmed.match(/^##\s/)){
+      if(inList){ html += '</ul>\n'; inList = false; }
+      html += '<h2>' + escapeHTML(trimmed.replace(/^##\s*/,'')) + '</h2>';
+    }
+    else if(trimmed.match(/^###\s/)){
+      if(inList){ html += '</ul>\n'; inList = false; }
+      html += '<h3>' + escapeHTML(trimmed.replace(/^###\s*/,'')) + '</h3>';
+    }
+    else if(trimmed.match(/^[-*•]\s/) || trimmed.match(/^\d+\.\s/)){
+      if(!inList){ html += '<ul>\n'; inList = true; }
+      var item = trimmed.replace(/^[-*•]\s*/,'').replace(/^\d+\.\s*/,'');
+      html += '<li>' + escapeHTML(item) + '</li>';
+    }
+    else if(trimmed.match(/^-\s*\[\s*\]\s/)){
+      if(!inList){ html += '<ul>\n'; inList = true; }
+      var todo = trimmed.replace(/^-\s*\[\s*\]\s*/,'');
+      html += '<li class="todo">' + escapeHTML(todo) + '</li>';
+    }
+    else {
+      if(inList){ html += '</ul>\n'; inList = false; }
+      html += '<p>' + escapeHTML(line) + '</p>';
+    }
+  }
+  if(inList) html += '</ul>\n';
+  return html;
+}
+
+function escapeHTML(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ========== EXPORT ==========
+function copyOutput(){
+  if(!lastOutput) return toast('没有可复制的内容');
+  navigator.clipboard.writeText(lastOutput).then(function(){ toast('已复制'); });
+}
+
+function downloadTXT(){
+  if(!lastOutput) return toast('没有可下载的内容');
+  var names = {summary:'摘要',requirements:'需求整理',minutes:'会议纪要',custom:'智能识别'};
+  var prefix = names[mode] || '输出';
+  downloadBlob(lastOutput, 'AI_'+prefix+'_'+new Date().toISOString().slice(0,10)+'.txt', 'text/plain');
+  toast('TXT 已下载');
+}
+
+function downloadMD(){
+  if(!lastOutput) return toast('没有可下载的内容');
+  var names = {summary:'摘要',requirements:'需求整理',minutes:'会议纪要',custom:'智能识别'};
+  var prefix = names[mode] || '输出';
+  downloadBlob(lastOutput, 'AI_'+prefix+'_'+new Date().toISOString().slice(0,10)+'.md', 'text/markdown');
+  toast('Markdown 已下载');
+}
+
+function exportPDF(){
+  if(!lastOutput) return toast('没有可导出的内容');
+  // Build a clean print page
+  var bodyHTML = document.getElementById('outputArea').innerHTML;
+  var printWin = window.open('about:blank','_blank');
+  if(!printWin){
+    // popup blocked - use current window
+    var origTitle = document.title;
+    var origBody = document.body.innerHTML;
+    document.body.innerHTML = '<div style="max-width:720px;margin:40px auto;padding:20px;font-family:sans-serif;line-height:1.9">'+bodyHTML+'</div>';
+    window.print();
+    document.body.innerHTML = origBody;
+    return;
+  }
+  printWin.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>AI文档工具箱-导出</title>'+
+    '<style>body{font-family:sans-serif;max-width:720px;margin:40px auto;padding:20px;line-height:1.9;font-size:14px}'+
+    'h2{font-size:18px;color:#0d9488;margin-top:24px}h3{font-size:15px}li{margin:6px 0}'+
+    '@media print{body{margin:0;padding:20px}}</style></head><body>'+bodyHTML+
+    '<p style="margin-top:40px;color:#999;font-size:11px;border-top:1px solid #ddd;padding-top:12px">AI文档工具箱生成 | '+new Date().toLocaleString()+'</p></body></html>');
+  printWin.document.close();
+  setTimeout(function(){ printWin.print(); }, 500);
+}
+
+function downloadBlob(content, filename, mime){
+  var b = new Blob([content],{type:mime+';charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function loadFile(e){
+  var f = e.target.files[0];
+  if(!f) return;
+  var r = new FileReader();
+  r.onload = function(ev){ document.getElementById('inputText').value = ev.target.result; updateCount(); };
+  r.readAsText(f, 'UTF-8');
+}
+
+function loadDemo(){
+  document.getElementById('inputText').value = DEMOS[mode] || DEMOS.summary;
+  updateCount();
+  toast('示例已加载');
+}
+
+function toast(msg){
+  var old = document.querySelector('.toast');
+  if(old) old.remove();
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 2000);
+}
+</script>
+</body>
+</html>
