@@ -50,15 +50,33 @@ def main():
         sys.exit(1)
 
     # Read input: file argument, then piped content, then prompt
+    def read_file(path):
+        for enc in ['utf-8', 'gbk', 'gb2312', 'utf-8-sig']:
+            try:
+                with open(path, 'r', encoding=enc) as f:
+                    return f.read().strip()
+            except UnicodeDecodeError:
+                continue
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            return f.read().strip()
+
+    def read_stdin():
+        raw = sys.stdin.buffer.read()
+        for enc in ['utf-8', 'gbk', 'gb2312', 'utf-8-sig']:
+            try:
+                return raw.decode(enc).strip()
+            except UnicodeDecodeError:
+                continue
+        return raw.decode('utf-8', errors='replace').strip()
+
     if len(sys.argv) >= 3:
-        with open(sys.argv[2], 'r', encoding='utf-8') as f:
-            user_input = f.read().strip()
+        user_input = read_file(sys.argv[2])
     elif not sys.stdin.isatty():
-        user_input = sys.stdin.buffer.read().decode('utf-8').strip()
+        user_input = read_stdin()
     else:
         print(f"模式: {mode}")
         print("粘贴内容后按 Ctrl+Z 然后回车:\n")
-        user_input = sys.stdin.buffer.read().decode('utf-8').strip()
+        user_input = read_stdin()
 
     if not user_input:
         print("没有输入内容")
