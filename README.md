@@ -42,6 +42,7 @@ python ai-cli.py minutes 会议记录.txt
 ├── README.md
 ├── 需求整理助手.txt     # Prompt 模板
 ├── 文档摘要助手.txt     # Prompt 模板
+├── 产品设计文档.md     # 完整产品设计文档（用户分析→需求→功能→原型→迭代）
 └── 演示材料.pdf        # 效果演示
 ```
 
