@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <title>AI 文档处理工具箱</title>
 <style>
 :root {
@@ -233,7 +234,7 @@ a:hover { text-decoration:underline; }
       </div>
       <div class="card-foot">
         <button class="btn btn-ghost btn-xs" onclick="document.getElementById('fileInput').click()">📁 导入</button>
-        <input type="file" id="fileInput" accept=".txt,.md,.json,.csv" onchange="loadFile(event)">
+        <input type="file" id="fileInput" accept=".txt,.md,.json,.csv,.xlsx,.xls" onchange="loadFile(event)">
         <button class="btn btn-ghost btn-xs" onclick="loadDemo()">💡 示例</button>
         <button class="btn btn-ghost btn-xs" onclick="document.getElementById('inputText').value='';updateCount()">清空</button>
         <button class="btn btn-accent" id="genBtn" onclick="generate()" style="margin-left:auto">⚡ 生成</button>
@@ -253,6 +254,7 @@ a:hover { text-decoration:underline; }
         <button class="btn btn-ghost btn-xs" onclick="copyOutput()">📋 复制</button>
         <button class="btn btn-ghost btn-xs" onclick="downloadMD()">📝 .md</button>
         <button class="btn btn-ghost btn-xs" onclick="downloadTXT()">📄 .txt</button>
+        <button class="btn btn-ghost btn-xs" onclick="downloadWord()">📄 Word</button>
         <button class="btn btn-ghost btn-xs" onclick="exportPDF()">🖨️ PDF</button>
       </div>
     </div>
@@ -264,9 +266,9 @@ a:hover { text-decoration:underline; }
 <!-- Modal -->
 <div class="modal-overlay" id="apiModal">
   <div class="modal">
-    <h3>设置 DeepSeek API Key</h3>
-    <p class="sub">密钥仅保存在浏览器本地，不上传任何服务器。<br>获取地址：<a href="https://platform.deepseek.com/api_keys" target="_blank">platform.deepseek.com/api_keys</a></p>
-    <input type="password" id="apiKeyInput" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx">
+    <h3>设置 API Key <span style="color:#10b981;font-size:13px">（已内置免费Key，也可用自己的）</span></h3>
+    <p class="sub">密钥仅保存在浏览器本地。<br>获取地址：<a href="https://platform.deepseek.com/api_keys" target="_blank">platform.deepseek.com/api_keys</a></p>
+    <input type="password" id="apiKeyInput" placeholder="留空则使用内置免费Key">
     <div class="btn-row">
       <button class="btn btn-ghost btn-xs" onclick="closeApiModal()">取消</button>
       <button class="btn btn-accent btn-xs" onclick="saveApiKey()">保存</button>
@@ -299,7 +301,8 @@ var DEMOS = {
 
 // ========== STATE ==========
 var mode = 'summary';
-var apiKey = localStorage.getItem('ds_api_key') || '';
+var DEFAULT_KEY = 'sk-qsnkddsgneqatkphrizufgngdpavbmggxojjzaujbduttaov';
+var apiKey = localStorage.getItem('ds_api_key') || DEFAULT_KEY;
 var lastOutput = '';
 
 // ========== INIT ==========
@@ -356,13 +359,17 @@ function generate(){
   out.innerHTML = '<div class="empty">AI 正在处理...</div>';
   btn.disabled = true;
   btn.textContent = '处理中...';
-  st.innerHTML = '<span class="live">正在调用 DeepSeek</span>';
+  st.innerHTML = '<span class="live">AI 处理中</span>';
 
-  fetch('https://api.deepseek.com/v1/chat/completions', {
+  var isUserKey = localStorage.getItem('ds_api_key');
+  var apiUrl = isUserKey ? 'https://api.deepseek.com/v1/chat/completions' : 'https://api.siliconflow.cn/v1/chat/completions';
+  var model = isUserKey ? 'deepseek-chat' : 'deepseek-ai/DeepSeek-V3';
+
+  fetch(apiUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
     body: JSON.stringify({
-      model: 'deepseek-chat',
+      model: model,
       messages: [
         { role: 'system', content: PROMPTS[mode] },
         { role: 'user', content: input }
@@ -463,6 +470,15 @@ function downloadMD(){
   toast('Markdown 已下载');
 }
 
+function downloadWord(){
+  if(!lastOutput) return toast('没有可下载的内容');
+  var names = {summary:'摘要',requirements:'需求整理',minutes:'会议纪要',custom:'智能识别'};
+  var prefix = names[mode] || '输出';
+  var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="UTF-8"><style>body{font-family:宋体,SimSun;font-size:14px;line-height:1.8;margin:40px 60px}h2{font-size:18px}h3{font-size:15px}p,li{margin:8px 0}</style></head><body>' + document.getElementById('outputArea').innerHTML + '</body></html>';
+  downloadBlob(html, 'AI_'+prefix+'_'+new Date().toISOString().slice(0,10)+'.doc', 'application/msword');
+  toast('Word 已下载');
+}
+
 function exportPDF(){
   if(!lastOutput) return toast('没有可导出的内容');
   // Build a clean print page
@@ -499,9 +515,28 @@ function downloadBlob(content, filename, mime){
 function loadFile(e){
   var f = e.target.files[0];
   if(!f) return;
-  var r = new FileReader();
-  r.onload = function(ev){ document.getElementById('inputText').value = ev.target.result; updateCount(); };
-  r.readAsText(f, 'UTF-8');
+  var ext = f.name.split('.').pop().toLowerCase();
+  if(ext === 'xlsx' || ext === 'xls'){
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var data = new Uint8Array(ev.target.result);
+      var wb = XLSX.read(data, {type: 'array'});
+      var text = '';
+      wb.SheetNames.forEach(function(name){
+        var sheet = wb.Sheets[name];
+        var csv = XLSX.utils.sheet_to_csv(sheet);
+        text += '【' + name + '】\n' + csv + '\n\n';
+      });
+      document.getElementById('inputText').value = text;
+      updateCount();
+      toast('已导入 ' + wb.SheetNames.length + ' 个工作表');
+    };
+    reader.readAsArrayBuffer(f);
+  } else {
+    var r = new FileReader();
+    r.onload = function(ev){ document.getElementById('inputText').value = ev.target.result; updateCount(); };
+    r.readAsText(f, 'UTF-8');
+  }
 }
 
 function loadDemo(){
