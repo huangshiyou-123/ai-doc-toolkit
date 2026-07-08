@@ -255,6 +255,7 @@ a:hover { text-decoration:underline; }
         <button class="btn btn-ghost btn-xs" onclick="downloadMD()">📝 .md</button>
         <button class="btn btn-ghost btn-xs" onclick="downloadTXT()">📄 .txt</button>
         <button class="btn btn-ghost btn-xs" onclick="downloadWord()">📄 Word</button>
+        <button class="btn btn-ghost btn-xs" onclick="downloadExcel()">📊 Excel</button>
         <button class="btn btn-ghost btn-xs" onclick="exportPDF()">🖨️ PDF</button>
       </div>
     </div>
@@ -454,11 +455,17 @@ function copyOutput(){
   navigator.clipboard.writeText(lastOutput).then(function(){ toast('已复制'); });
 }
 
+function buildPrettyHTML(title){
+  var bodyHTML = document.getElementById('outputArea').innerHTML;
+  var style = '*{box-sizing:border-box}body{font-family:宋体,SimSun,sans-serif;font-size:14px;line-height:2;color:#333;max-width:800px;margin:0 auto;padding:50px 40px}h2{font-size:20px;color:#0d9488;border-bottom:2px solid #0d9488;padding-bottom:8px;margin:32px 0 16px}h3{font-size:16px;color:#555;margin:20px 0 10px}h4{font-size:14px;color:#333;margin:14px 0 6px}strong{color:#0f172a}p{margin:10px 0}li{margin:6px 0 6px 20px}ul{padding-left:16px;margin:8px 0}table{width:100%;border-collapse:collapse;margin:12px 0}td,th{border:1px solid #ddd;padding:8px 12px;text-align:left}th{background:#f5f5f5;font-weight:700}hr{border:none;border-top:1px solid #eee;margin:20px 0}@media print{body{padding:20px;margin:0}}';
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'</title><style>'+style+'</style></head><body>'+bodyHTML+'<hr><p style="color:#999;font-size:11px;text-align:center">AI文档工具箱生成 | '+new Date().toLocaleString()+'</p></body></html>';
+}
+
 function downloadTXT(){
   if(!lastOutput) return toast('没有可下载的内容');
   var names = {summary:'摘要',requirements:'需求整理',minutes:'会议纪要',custom:'智能识别'};
   var prefix = names[mode] || '输出';
-  downloadBlob(lastOutput, 'AI_'+prefix+'_'+new Date().toISOString().slice(0,10)+'.txt', 'text/plain');
+  downloadBlob(lastOutput, 'AI_'+prefix+'_'+new Date().toISOString().slice(0,10)+'.txt', 'text/plain;charset=utf-8');
   toast('TXT 已下载');
 }
 
@@ -466,7 +473,7 @@ function downloadMD(){
   if(!lastOutput) return toast('没有可下载的内容');
   var names = {summary:'摘要',requirements:'需求整理',minutes:'会议纪要',custom:'智能识别'};
   var prefix = names[mode] || '输出';
-  downloadBlob(lastOutput, 'AI_'+prefix+'_'+new Date().toISOString().slice(0,10)+'.md', 'text/markdown');
+  downloadBlob(lastOutput, 'AI_'+prefix+'_'+new Date().toISOString().slice(0,10)+'.md', 'text/markdown;charset=utf-8');
   toast('Markdown 已下载');
 }
 
@@ -474,30 +481,32 @@ function downloadWord(){
   if(!lastOutput) return toast('没有可下载的内容');
   var names = {summary:'摘要',requirements:'需求整理',minutes:'会议纪要',custom:'智能识别'};
   var prefix = names[mode] || '输出';
-  var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="UTF-8"><style>body{font-family:宋体,SimSun;font-size:14px;line-height:1.8;margin:40px 60px}h2{font-size:18px}h3{font-size:15px}p,li{margin:8px 0}</style></head><body>' + document.getElementById('outputArea').innerHTML + '</body></html>';
-  downloadBlob(html, 'AI_'+prefix+'_'+new Date().toISOString().slice(0,10)+'.doc', 'application/msword');
+  var html = buildPrettyHTML('AI文档工具箱 - '+prefix);
+  downloadBlob(html, 'AI_'+prefix+'_'+new Date().toISOString().slice(0,10)+'.doc', 'application/msword;charset=utf-8');
   toast('Word 已下载');
+}
+
+function downloadExcel(){
+  if(!lastOutput) return toast('没有可下载的内容');
+  var names = {summary:'摘要',requirements:'需求整理',minutes:'会议纪要',custom:'智能识别'};
+  var prefix = names[mode] || '输出';
+  var html = buildPrettyHTML('AI文档工具箱 - '+prefix);
+  downloadBlob(html, 'AI_'+prefix+'_'+new Date().toISOString().slice(0,10)+'.xls', 'application/vnd.ms-excel;charset=utf-8');
+  toast('Excel 已下载');
 }
 
 function exportPDF(){
   if(!lastOutput) return toast('没有可导出的内容');
-  // Build a clean print page
-  var bodyHTML = document.getElementById('outputArea').innerHTML;
+  var html = buildPrettyHTML('AI文档工具箱');
   var printWin = window.open('about:blank','_blank');
   if(!printWin){
-    // popup blocked - use current window
-    var origTitle = document.title;
     var origBody = document.body.innerHTML;
-    document.body.innerHTML = '<div style="max-width:720px;margin:40px auto;padding:20px;font-family:sans-serif;line-height:1.9">'+bodyHTML+'</div>';
+    document.body.innerHTML = html;
     window.print();
     document.body.innerHTML = origBody;
     return;
   }
-  printWin.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>AI文档工具箱-导出</title>'+
-    '<style>body{font-family:sans-serif;max-width:720px;margin:40px auto;padding:20px;line-height:1.9;font-size:14px}'+
-    'h2{font-size:18px;color:#0d9488;margin-top:24px}h3{font-size:15px}li{margin:6px 0}'+
-    '@media print{body{margin:0;padding:20px}}</style></head><body>'+bodyHTML+
-    '<p style="margin-top:40px;color:#999;font-size:11px;border-top:1px solid #ddd;padding-top:12px">AI文档工具箱生成 | '+new Date().toLocaleString()+'</p></body></html>');
+  printWin.document.write(html);
   printWin.document.close();
   setTimeout(function(){ printWin.print(); }, 500);
 }
